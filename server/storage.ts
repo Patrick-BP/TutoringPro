@@ -180,8 +180,15 @@ export class MemStorage implements IStorage {
     const now = new Date();
     const user: User = {
       id,
-      ...userData,
-      createdAt: now.toISOString()
+      username: userData.username,
+      email: userData.email,
+      password: userData.password,
+      firstName: userData.firstName,
+      lastName: userData.lastName,
+      role: userData.role,
+      phone: userData.phone || null,
+      avatar: userData.avatar || null,
+      createdAt: now
     };
     this.users.set(id, user);
     return user;
@@ -202,7 +209,7 @@ export class MemStorage implements IStorage {
     const student: Student = {
       id,
       ...studentData,
-      createdAt: now.toISOString()
+      createdAt: now
     };
     this.students.set(id, student);
     return student;

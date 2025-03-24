@@ -1,65 +1,68 @@
-import { Switch, Route, useLocation } from "wouter";
-import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
 import { useState } from "react";
-import { AuthUser } from "./types";
-
-// Pages
-import Login from "@/pages/login";
-import Dashboard from "@/pages/dashboard";
-import Inquiries from "@/pages/inquiries";
-import Tutors from "@/pages/tutors";
-import Students from "@/pages/students";
-import Calendar from "@/pages/calendar";
-import Reports from "@/pages/reports";
-import Billing from "@/pages/billing";
-import NotFound from "@/pages/not-found";
-
-// Layout
-import AppLayout from "@/components/layout/AppLayout";
+import { Toaster } from "@/components/ui/toaster";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export default function App() {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [location] = useLocation();
-
-  // For demonstration purposes, let's handle demo login
-  const handleDemoLogin = () => {
-    // Create a dummy authenticated user for demonstration
-    const demoUser: AuthUser = {
-      id: 1,
-      username: "admin",
-      firstName: "Admin",
-      lastName: "User",
-      email: "admin@tutorsync.com",
-      role: "admin",
-      phone: "555-123-4567",
-      avatar: null,
-      isAuthenticated: true,
-    };
-    setUser(demoUser);
-  };
+  const [loggedIn, setLoggedIn] = useState(false);
+  
+  if (!loggedIn) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="space-y-1 text-center">
+            <CardTitle className="text-2xl font-bold tracking-tight text-primary">
+              TutorSync
+            </CardTitle>
+            <p className="text-gray-500">
+              Tutoring Business Automation Platform
+            </p>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={(e) => { e.preventDefault(); setLoggedIn(true); }} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="username">Username</Label>
+                <Input id="username" defaultValue="admin" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input id="password" type="password" defaultValue="password" />
+              </div>
+              <Button type="submit" className="w-full">
+                Sign In
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+        <Toaster />
+      </div>
+    );
+  }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      {!user ? (
-        <Login onLogin={(loggedInUser) => setUser(loggedInUser)} />
-      ) : (
-        <AppLayout user={user}>
-          <Switch>
-            <Route path="/" component={Dashboard} />
-            <Route path="/dashboard" component={Dashboard} />
-            <Route path="/inquiries" component={Inquiries} />
-            <Route path="/tutors" component={Tutors} />
-            <Route path="/students" component={Students} />
-            <Route path="/calendar" component={Calendar} />
-            <Route path="/reports" component={Reports} />
-            <Route path="/billing" component={Billing} />
-            <Route component={NotFound} />
-          </Switch>
-        </AppLayout>
-      )}
+    <div className="min-h-screen flex flex-col bg-gray-50">
+      <header className="bg-white border-b p-4">
+        <h1 className="text-2xl font-bold text-primary">TutorSync Dashboard</h1>
+      </header>
+      <main className="p-6">
+        <h2 className="text-xl font-semibold mb-4">Welcome to TutorSync</h2>
+        <p className="mb-4">This is a simplified version of the dashboard. The full application includes:</p>
+        <ul className="list-disc ml-6 space-y-2">
+          <li>Student and tutor management</li>
+          <li>Inquiry processing</li>
+          <li>Scheduling tools</li>
+          <li>Session reporting</li>
+          <li>Billing automation</li>
+        </ul>
+        <div className="mt-4">
+          <Button onClick={() => setLoggedIn(false)}>
+            Log Out
+          </Button>
+        </div>
+      </main>
       <Toaster />
-    </QueryClientProvider>
+    </div>
   );
 }
