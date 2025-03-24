@@ -1,183 +1,172 @@
-import { pgTable, text, serial, integer, boolean, timestamp, json } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, date, time, timestamp, json } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// User related tables
+// Users (Administrators, Parents, Tutors)
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
-  password: text("password").notNull(),
   email: text("email").notNull().unique(),
-  fullName: text("full_name").notNull(),
+  password: text("password").notNull(),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  role: text("role", { enum: ["admin", "parent", "tutor"] }).notNull(),
   phone: text("phone"),
-  role: text("role").notNull(), // admin, tutor, parent
-  createdAt: timestamp("created_at").defaultNow()
+  avatar: text("avatar"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const insertUserSchema = createInsertSchema(users).omit({ 
+export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
-  createdAt: true 
+  createdAt: true,
 });
 
-// Tutor specific information
-export const tutors = pgTable("tutors", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id),
-  subjects: text("subjects").array(),
-  availability: json("availability"),
-  education: text("education"),
-  hourlyRate: integer("hourly_rate"),
-  location: text("location"),
-  bio: text("bio"),
-  active: boolean("active").default(true)
-});
-
-export const insertTutorSchema = createInsertSchema(tutors).omit({ 
-  id: true 
-});
-
-// Parent/student related information
+// Students
 export const students = pgTable("students", {
   id: serial("id").primaryKey(),
-  parentId: integer("parent_id").notNull().references(() => users.id),
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
   grade: text("grade").notNull(),
-  learningNeeds: text("learning_needs"),
-  active: boolean("active").default(true)
+  parentId: integer("parent_id").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const insertStudentSchema = createInsertSchema(students).omit({ 
-  id: true 
+export const insertStudentSchema = createInsertSchema(students).omit({
+  id: true,
+  createdAt: true,
 });
 
-// Parent inquiries
+// Inquiries
 export const inquiries = pgTable("inquiries", {
   id: serial("id").primaryKey(),
-  parentId: integer("parent_id").references(() => users.id),
-  firstName: text("first_name").notNull(),
-  lastName: text("last_name").notNull(),
-  grade: text("grade").notNull(),
+  parentFirstName: text("parent_first_name").notNull(),
+  parentLastName: text("parent_last_name").notNull(),
+  parentEmail: text("parent_email").notNull(),
+  parentPhone: text("parent_phone").notNull(),
+  studentName: text("student_name").notNull(),
+  studentGrade: text("student_grade").notNull(),
   subject: text("subject").notNull(),
-  learningNeeds: text("learning_needs"),
-  days: text("days").array(),
-  timePreference: text("time_preference"),
-  sessionFrequency: text("session_frequency"),
-  locationPreference: text("location_preference"),
-  budget: integer("budget"),
-  parentName: text("parent_name").notNull(),
-  email: text("email").notNull(),
-  phone: text("phone"),
-  contactPreference: text("contact_preference"),
-  status: text("status").default("new"), // new, in_progress, matched, closed
-  createdAt: timestamp("created_at").defaultNow()
+  specificNeeds: text("specific_needs"),
+  location: text("location").notNull(),
+  zipCode: text("zip_code"),
+  availability: text("availability").array(),
+  additionalInfo: text("additional_info"),
+  budget: text("budget"),
+  referral: text("referral"),
+  status: text("status", { enum: ["new", "scheduled", "matched", "completed", "cancelled"] }).notNull().default("new"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const insertInquirySchema = createInsertSchema(inquiries).omit({ 
-  id: true, 
-  parentId: true,
-  status: true,
-  createdAt: true
-});
-
-// Parent call scheduling
-export const calls = pgTable("calls", {
-  id: serial("id").primaryKey(),
-  parentId: integer("parent_id").references(() => users.id),
-  adminId: integer("admin_id").references(() => users.id),
-  inquiryId: integer("inquiry_id").references(() => inquiries.id),
-  date: timestamp("date").notNull(),
-  duration: integer("duration").default(30), // in minutes
-  notes: text("notes"),
-  status: text("status").default("scheduled"), // scheduled, completed, cancelled
-  createdAt: timestamp("created_at").defaultNow()
-});
-
-export const insertCallSchema = createInsertSchema(calls).omit({ 
+export const insertInquirySchema = createInsertSchema(inquiries).omit({
   id: true,
   status: true,
-  createdAt: true
+  createdAt: true,
 });
 
-// Tutoring sessions
+// Tutors
+export const tutors = pgTable("tutors", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().unique(),
+  subjects: text("subjects").array(),
+  education: text("education"),
+  bio: text("bio"),
+  hourlyRate: text("hourly_rate"),
+  availability: json("availability"),
+  location: text("location"),
+  zipCode: text("zip_code"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertTutorSchema = createInsertSchema(tutors).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Scheduled calls
+export const scheduledCalls = pgTable("scheduled_calls", {
+  id: serial("id").primaryKey(),
+  inquiryId: integer("inquiry_id"),
+  parentId: integer("parent_id"),
+  adminId: integer("admin_id"),
+  callDate: date("call_date").notNull(),
+  callTime: time("call_time").notNull(),
+  callType: text("call_type", { enum: ["phone", "video"] }).notNull(),
+  callPurpose: text("call_purpose").notNull(),
+  status: text("status", { enum: ["scheduled", "completed", "cancelled"] }).notNull().default("scheduled"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertScheduledCallSchema = createInsertSchema(scheduledCalls).omit({
+  id: true,
+  status: true,
+  createdAt: true,
+});
+
+// Sessions
 export const sessions = pgTable("sessions", {
   id: serial("id").primaryKey(),
-  tutorId: integer("tutor_id").notNull().references(() => tutors.id),
-  studentId: integer("student_id").notNull().references(() => students.id),
+  tutorId: integer("tutor_id").notNull(),
+  studentId: integer("student_id").notNull(),
   subject: text("subject").notNull(),
-  startTime: timestamp("start_time").notNull(),
-  endTime: timestamp("end_time").notNull(),
-  status: text("status").default("scheduled"), // scheduled, completed, cancelled
-  location: text("location"),
+  date: date("date").notNull(),
+  startTime: time("start_time").notNull(),
+  endTime: time("end_time").notNull(),
+  status: text("status", { enum: ["scheduled", "completed", "cancelled"] }).notNull().default("scheduled"),
   notes: text("notes"),
-  createdAt: timestamp("created_at").defaultNow()
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const insertSessionSchema = createInsertSchema(sessions).omit({ 
+export const insertSessionSchema = createInsertSchema(sessions).omit({
   id: true,
   status: true,
-  createdAt: true
+  createdAt: true,
 });
 
-// Session reports
-export const reports = pgTable("reports", {
+// Session Reports
+export const sessionReports = pgTable("session_reports", {
   id: serial("id").primaryKey(),
-  sessionId: integer("session_id").notNull().references(() => sessions.id),
-  topicsCovered: text("topics_covered").notNull(),
-  summary: text("summary").notNull(),
-  homeworkAssigned: text("homework_assigned"),
-  progressAssessment: text("progress_assessment").notNull(),
-  internalNotes: text("internal_notes"),
-  approved: boolean("approved").default(false),
-  createdAt: timestamp("created_at").defaultNow()
+  sessionId: integer("session_id").notNull().unique(),
+  content: text("content").notNull(),
+  progress: text("progress").notNull(),
+  nextSteps: text("next_steps"),
+  adminApproved: boolean("admin_approved").default(false),
+  sentToParent: boolean("sent_to_parent").default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const insertReportSchema = createInsertSchema(reports).omit({ 
+export const insertSessionReportSchema = createInsertSchema(sessionReports).omit({
   id: true,
-  approved: true,
-  createdAt: true
+  adminApproved: true,
+  sentToParent: true,
+  createdAt: true,
 });
 
 // Invoices
 export const invoices = pgTable("invoices", {
   id: serial("id").primaryKey(),
-  tutorId: integer("tutor_id").notNull().references(() => tutors.id),
-  parentId: integer("parent_id").notNull().references(() => users.id),
-  amount: integer("amount").notNull(), // in cents
+  tutorId: integer("tutor_id").notNull(),
+  parentId: integer("parent_id").notNull(),
+  amount: integer("amount").notNull(),
   description: text("description").notNull(),
-  status: text("status").default("pending"), // pending, paid, cancelled
-  dueDate: timestamp("due_date"),
-  paidDate: timestamp("paid_date"),
-  createdAt: timestamp("created_at").defaultNow()
+  status: text("status", { enum: ["draft", "sent", "paid", "overdue"] }).notNull().default("draft"),
+  dueDate: date("due_date").notNull(),
+  paidDate: date("paid_date"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const insertInvoiceSchema = createInsertSchema(invoices).omit({ 
+export const insertInvoiceSchema = createInsertSchema(invoices).omit({
   id: true,
   status: true,
   paidDate: true,
-  createdAt: true
+  createdAt: true,
 });
 
-// Invoice items
-export const invoiceItems = pgTable("invoice_items", {
-  id: serial("id").primaryKey(),
-  invoiceId: integer("invoice_id").notNull().references(() => invoices.id),
-  sessionId: integer("session_id").references(() => sessions.id),
-  description: text("description").notNull(),
-  amount: integer("amount").notNull(), // in cents
-  quantity: integer("quantity").default(1)
-});
-
-export const insertInvoiceItemSchema = createInsertSchema(invoiceItems).omit({ 
-  id: true 
-});
-
-// Export all types
+// Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
-
-export type Tutor = typeof tutors.$inferSelect;
-export type InsertTutor = z.infer<typeof insertTutorSchema>;
 
 export type Student = typeof students.$inferSelect;
 export type InsertStudent = z.infer<typeof insertStudentSchema>;
@@ -185,17 +174,17 @@ export type InsertStudent = z.infer<typeof insertStudentSchema>;
 export type Inquiry = typeof inquiries.$inferSelect;
 export type InsertInquiry = z.infer<typeof insertInquirySchema>;
 
-export type Call = typeof calls.$inferSelect;
-export type InsertCall = z.infer<typeof insertCallSchema>;
+export type Tutor = typeof tutors.$inferSelect;
+export type InsertTutor = z.infer<typeof insertTutorSchema>;
+
+export type ScheduledCall = typeof scheduledCalls.$inferSelect;
+export type InsertScheduledCall = z.infer<typeof insertScheduledCallSchema>;
 
 export type Session = typeof sessions.$inferSelect;
 export type InsertSession = z.infer<typeof insertSessionSchema>;
 
-export type Report = typeof reports.$inferSelect;
-export type InsertReport = z.infer<typeof insertReportSchema>;
+export type SessionReport = typeof sessionReports.$inferSelect;
+export type InsertSessionReport = z.infer<typeof insertSessionReportSchema>;
 
 export type Invoice = typeof invoices.$inferSelect;
 export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
-
-export type InvoiceItem = typeof invoiceItems.$inferSelect;
-export type InsertInvoiceItem = z.infer<typeof insertInvoiceItemSchema>;

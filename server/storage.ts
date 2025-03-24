@@ -1,485 +1,444 @@
 import { 
   users, type User, type InsertUser,
-  tutors, type Tutor, type InsertTutor,
   students, type Student, type InsertStudent,
   inquiries, type Inquiry, type InsertInquiry,
-  calls, type Call, type InsertCall,
+  tutors, type Tutor, type InsertTutor,
+  scheduledCalls, type ScheduledCall, type InsertScheduledCall,
   sessions, type Session, type InsertSession,
-  reports, type Report, type InsertReport,
-  invoices, type Invoice, type InsertInvoice,
-  invoiceItems, type InvoiceItem, type InsertInvoiceItem
+  sessionReports, type SessionReport, type InsertSessionReport,
+  invoices, type Invoice, type InsertInvoice
 } from "@shared/schema";
+import { TodaySession, DashboardStats } from "@/types";
 
 // Interface for storage operations
 export interface IStorage {
   // User operations
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
-  getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
-  updateUser(id: number, user: Partial<User>): Promise<User | undefined>;
-  listUsers(role?: string): Promise<User[]>;
-  
-  // Tutor operations
-  getTutor(id: number): Promise<Tutor | undefined>;
-  getTutorByUserId(userId: number): Promise<Tutor | undefined>;
-  createTutor(tutor: InsertTutor): Promise<Tutor>;
-  updateTutor(id: number, tutor: Partial<Tutor>): Promise<Tutor | undefined>;
-  listTutors(active?: boolean): Promise<Tutor[]>;
   
   // Student operations
   getStudent(id: number): Promise<Student | undefined>;
-  getStudentsByParentId(parentId: number): Promise<Student[]>;
+  getAllStudents(): Promise<Student[]>;
   createStudent(student: InsertStudent): Promise<Student>;
-  updateStudent(id: number, student: Partial<Student>): Promise<Student | undefined>;
-  listStudents(active?: boolean): Promise<Student[]>;
   
   // Inquiry operations
   getInquiry(id: number): Promise<Inquiry | undefined>;
-  getInquiriesByParentId(parentId: number): Promise<Inquiry[]>;
+  getAllInquiries(): Promise<Inquiry[]>;
+  getRecentInquiries(): Promise<Inquiry[]>;
   createInquiry(inquiry: InsertInquiry): Promise<Inquiry>;
-  updateInquiry(id: number, inquiry: Partial<Inquiry>): Promise<Inquiry | undefined>;
-  listInquiries(status?: string): Promise<Inquiry[]>;
+  updateInquiryStatus(id: number, status: string): Promise<Inquiry | undefined>;
   
-  // Call operations
-  getCall(id: number): Promise<Call | undefined>;
-  getCallsByParentId(parentId: number): Promise<Call[]>;
-  createCall(call: InsertCall): Promise<Call>;
-  updateCall(id: number, call: Partial<Call>): Promise<Call | undefined>;
-  listCalls(status?: string): Promise<Call[]>;
+  // Tutor operations
+  getTutor(id: number): Promise<Tutor | undefined>;
+  getAllTutors(): Promise<Tutor[]>;
+  createTutor(tutor: InsertTutor): Promise<Tutor>;
+  
+  // ScheduledCall operations
+  getScheduledCall(id: number): Promise<ScheduledCall | undefined>;
+  getAllScheduledCalls(): Promise<ScheduledCall[]>;
+  createScheduledCall(call: InsertScheduledCall): Promise<ScheduledCall>;
   
   // Session operations
   getSession(id: number): Promise<Session | undefined>;
-  getSessionsByTutorId(tutorId: number): Promise<Session[]>;
-  getSessionsByStudentId(studentId: number): Promise<Session[]>;
+  getAllSessions(): Promise<Session[]>;
+  getTodaySessions(): Promise<TodaySession[]>;
   createSession(session: InsertSession): Promise<Session>;
-  updateSession(id: number, session: Partial<Session>): Promise<Session | undefined>;
-  listSessions(status?: string): Promise<Session[]>;
   
-  // Report operations
-  getReport(id: number): Promise<Report | undefined>;
-  getReportBySessionId(sessionId: number): Promise<Report | undefined>;
-  createReport(report: InsertReport): Promise<Report>;
-  updateReport(id: number, report: Partial<Report>): Promise<Report | undefined>;
-  listReports(approved?: boolean): Promise<Report[]>;
+  // SessionReport operations
+  getSessionReport(id: number): Promise<SessionReport | undefined>;
+  getAllSessionReports(): Promise<SessionReport[]>;
+  createSessionReport(report: InsertSessionReport): Promise<SessionReport>;
   
   // Invoice operations
   getInvoice(id: number): Promise<Invoice | undefined>;
-  getInvoicesByTutorId(tutorId: number): Promise<Invoice[]>;
-  getInvoicesByParentId(parentId: number): Promise<Invoice[]>;
+  getAllInvoices(): Promise<Invoice[]>;
   createInvoice(invoice: InsertInvoice): Promise<Invoice>;
-  updateInvoice(id: number, invoice: Partial<Invoice>): Promise<Invoice | undefined>;
-  listInvoices(status?: string): Promise<Invoice[]>;
-  
-  // Invoice item operations
-  getInvoiceItem(id: number): Promise<InvoiceItem | undefined>;
-  getInvoiceItemsByInvoiceId(invoiceId: number): Promise<InvoiceItem[]>;
-  createInvoiceItem(invoiceItem: InsertInvoiceItem): Promise<InvoiceItem>;
-  updateInvoiceItem(id: number, invoiceItem: Partial<InvoiceItem>): Promise<InvoiceItem | undefined>;
+
+  // Dashboard operations
+  getDashboardStats(): Promise<DashboardStats>;
 }
 
 export class MemStorage implements IStorage {
   private users: Map<number, User>;
-  private tutors: Map<number, Tutor>;
   private students: Map<number, Student>;
   private inquiries: Map<number, Inquiry>;
-  private calls: Map<number, Call>;
+  private tutors: Map<number, Tutor>;
+  private scheduledCalls: Map<number, ScheduledCall>;
   private sessions: Map<number, Session>;
-  private reports: Map<number, Report>;
+  private sessionReports: Map<number, SessionReport>;
   private invoices: Map<number, Invoice>;
-  private invoiceItems: Map<number, InvoiceItem>;
   
-  private currentIds: {
-    users: number;
-    tutors: number;
-    students: number;
-    inquiries: number;
-    calls: number;
-    sessions: number;
-    reports: number;
-    invoices: number;
-    invoiceItems: number;
-  };
-
+  private userIdCounter: number;
+  private studentIdCounter: number;
+  private inquiryIdCounter: number;
+  private tutorIdCounter: number;
+  private callIdCounter: number;
+  private sessionIdCounter: number;
+  private reportIdCounter: number;
+  private invoiceIdCounter: number;
+  
   constructor() {
     this.users = new Map();
-    this.tutors = new Map();
     this.students = new Map();
     this.inquiries = new Map();
-    this.calls = new Map();
+    this.tutors = new Map();
+    this.scheduledCalls = new Map();
     this.sessions = new Map();
-    this.reports = new Map();
+    this.sessionReports = new Map();
     this.invoices = new Map();
-    this.invoiceItems = new Map();
     
-    this.currentIds = {
-      users: 1,
-      tutors: 1,
-      students: 1,
-      inquiries: 1,
-      calls: 1,
-      sessions: 1,
-      reports: 1,
-      invoices: 1,
-      invoiceItems: 1
-    };
+    this.userIdCounter = 1;
+    this.studentIdCounter = 1;
+    this.inquiryIdCounter = 1;
+    this.tutorIdCounter = 1;
+    this.callIdCounter = 1;
+    this.sessionIdCounter = 1;
+    this.reportIdCounter = 1;
+    this.invoiceIdCounter = 1;
     
-    // Add a default admin user
+    // Initialize with a default admin user
     this.createUser({
       username: "admin",
-      password: "password", // In a real app, this would be hashed
       email: "admin@tutorsync.com",
-      fullName: "Admin User",
-      role: "admin"
+      password: "password",
+      firstName: "Admin",
+      lastName: "User",
+      role: "admin",
+      phone: "555-123-4567"
+    });
+
+    // Add some sample inquiries
+    this.createInquiry({
+      parentFirstName: "Jack",
+      parentLastName: "Smith",
+      parentEmail: "jack.smith@example.com",
+      parentPhone: "555-111-1111",
+      studentName: "Tommy Smith",
+      studentGrade: "10",
+      subject: "math",
+      specificNeeds: "Algebra II",
+      location: "online",
+      zipCode: "10001",
+      availability: ["weekday-afternoon", "weekend"],
+      additionalInfo: "Struggling with quadratic equations",
+      budget: "50-60",
+      referral: "google"
+    });
+
+    this.createInquiry({
+      parentFirstName: "Alice",
+      parentLastName: "Davis",
+      parentEmail: "alice.davis@example.com",
+      parentPhone: "555-222-2222",
+      studentName: "Emma Davis",
+      studentGrade: "8",
+      subject: "english",
+      specificNeeds: "Essay Writing",
+      location: "student-home",
+      zipCode: "10002",
+      availability: ["weekday-evening"],
+      additionalInfo: "Needs help with structure and grammar",
+      budget: "40-50",
+      referral: "friend"
+    });
+
+    this.createInquiry({
+      parentFirstName: "Robert",
+      parentLastName: "Johnson",
+      parentEmail: "robert.johnson@example.com",
+      parentPhone: "555-333-3333",
+      studentName: "Michael Johnson",
+      studentGrade: "12",
+      subject: "science",
+      specificNeeds: "AP Chemistry",
+      location: "tutor-location",
+      zipCode: "10003",
+      availability: ["weekday-evening", "weekend"],
+      additionalInfo: "Preparing for AP exam",
+      budget: "60-70",
+      referral: "school"
     });
   }
-
+  
   // User operations
   async getUser(id: number): Promise<User | undefined> {
     return this.users.get(id);
   }
-
+  
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    for (const user of this.users.values()) {
+      if (user.username === username) {
+        return user;
+      }
+    }
+    return undefined;
   }
   
-  async getUserByEmail(email: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.email === email,
-    );
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.currentIds.users++;
+  async createUser(userData: InsertUser): Promise<User> {
+    const id = this.userIdCounter++;
     const now = new Date();
-    const user: User = { ...insertUser, id, createdAt: now };
+    const user: User = {
+      id,
+      ...userData,
+      createdAt: now.toISOString()
+    };
     this.users.set(id, user);
     return user;
   }
   
-  async updateUser(id: number, userData: Partial<User>): Promise<User | undefined> {
-    const user = this.users.get(id);
-    if (!user) return undefined;
-    
-    const updatedUser = { ...user, ...userData };
-    this.users.set(id, updatedUser);
-    return updatedUser;
-  }
-  
-  async listUsers(role?: string): Promise<User[]> {
-    const users = Array.from(this.users.values());
-    return role ? users.filter(user => user.role === role) : users;
-  }
-
-  // Tutor operations
-  async getTutor(id: number): Promise<Tutor | undefined> {
-    return this.tutors.get(id);
-  }
-  
-  async getTutorByUserId(userId: number): Promise<Tutor | undefined> {
-    return Array.from(this.tutors.values()).find(
-      (tutor) => tutor.userId === userId,
-    );
-  }
-  
-  async createTutor(insertTutor: InsertTutor): Promise<Tutor> {
-    const id = this.currentIds.tutors++;
-    const tutor: Tutor = { ...insertTutor, id };
-    this.tutors.set(id, tutor);
-    return tutor;
-  }
-  
-  async updateTutor(id: number, tutorData: Partial<Tutor>): Promise<Tutor | undefined> {
-    const tutor = this.tutors.get(id);
-    if (!tutor) return undefined;
-    
-    const updatedTutor = { ...tutor, ...tutorData };
-    this.tutors.set(id, updatedTutor);
-    return updatedTutor;
-  }
-  
-  async listTutors(active?: boolean): Promise<Tutor[]> {
-    const tutors = Array.from(this.tutors.values());
-    return active !== undefined 
-      ? tutors.filter(tutor => tutor.active === active)
-      : tutors;
-  }
-
   // Student operations
   async getStudent(id: number): Promise<Student | undefined> {
     return this.students.get(id);
   }
   
-  async getStudentsByParentId(parentId: number): Promise<Student[]> {
-    return Array.from(this.students.values()).filter(
-      (student) => student.parentId === parentId,
-    );
+  async getAllStudents(): Promise<Student[]> {
+    return Array.from(this.students.values());
   }
   
-  async createStudent(insertStudent: InsertStudent): Promise<Student> {
-    const id = this.currentIds.students++;
-    const student: Student = { ...insertStudent, id };
+  async createStudent(studentData: InsertStudent): Promise<Student> {
+    const id = this.studentIdCounter++;
+    const now = new Date();
+    const student: Student = {
+      id,
+      ...studentData,
+      createdAt: now.toISOString()
+    };
     this.students.set(id, student);
     return student;
   }
   
-  async updateStudent(id: number, studentData: Partial<Student>): Promise<Student | undefined> {
-    const student = this.students.get(id);
-    if (!student) return undefined;
-    
-    const updatedStudent = { ...student, ...studentData };
-    this.students.set(id, updatedStudent);
-    return updatedStudent;
-  }
-  
-  async listStudents(active?: boolean): Promise<Student[]> {
-    const students = Array.from(this.students.values());
-    return active !== undefined 
-      ? students.filter(student => student.active === active)
-      : students;
-  }
-
   // Inquiry operations
   async getInquiry(id: number): Promise<Inquiry | undefined> {
     return this.inquiries.get(id);
   }
   
-  async getInquiriesByParentId(parentId: number): Promise<Inquiry[]> {
-    return Array.from(this.inquiries.values()).filter(
-      (inquiry) => inquiry.parentId === parentId,
-    );
+  async getAllInquiries(): Promise<Inquiry[]> {
+    return Array.from(this.inquiries.values());
   }
   
-  async createInquiry(insertInquiry: InsertInquiry): Promise<Inquiry> {
-    const id = this.currentIds.inquiries++;
+  async getRecentInquiries(): Promise<Inquiry[]> {
+    // Get the 5 most recent inquiries
+    return Array.from(this.inquiries.values())
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 5);
+  }
+  
+  async createInquiry(inquiryData: InsertInquiry): Promise<Inquiry> {
+    const id = this.inquiryIdCounter++;
     const now = new Date();
-    const inquiry: Inquiry = { 
-      ...insertInquiry, 
-      id, 
-      parentId: null, 
-      status: "new", 
-      createdAt: now 
+    const inquiry: Inquiry = {
+      id,
+      ...inquiryData,
+      status: "new",
+      createdAt: now.toISOString()
     };
     this.inquiries.set(id, inquiry);
     return inquiry;
   }
   
-  async updateInquiry(id: number, inquiryData: Partial<Inquiry>): Promise<Inquiry | undefined> {
+  async updateInquiryStatus(id: number, status: string): Promise<Inquiry | undefined> {
     const inquiry = this.inquiries.get(id);
     if (!inquiry) return undefined;
     
-    const updatedInquiry = { ...inquiry, ...inquiryData };
+    const updatedInquiry: Inquiry = {
+      ...inquiry,
+      status: status as any // Type assertion because status is a limited enum
+    };
+    
     this.inquiries.set(id, updatedInquiry);
     return updatedInquiry;
   }
   
-  async listInquiries(status?: string): Promise<Inquiry[]> {
-    const inquiries = Array.from(this.inquiries.values());
-    return status 
-      ? inquiries.filter(inquiry => inquiry.status === status)
-      : inquiries;
-  }
-
-  // Call operations
-  async getCall(id: number): Promise<Call | undefined> {
-    return this.calls.get(id);
+  // Tutor operations
+  async getTutor(id: number): Promise<Tutor | undefined> {
+    return this.tutors.get(id);
   }
   
-  async getCallsByParentId(parentId: number): Promise<Call[]> {
-    return Array.from(this.calls.values()).filter(
-      (call) => call.parentId === parentId,
-    );
+  async getAllTutors(): Promise<Tutor[]> {
+    return Array.from(this.tutors.values());
   }
   
-  async createCall(insertCall: InsertCall): Promise<Call> {
-    const id = this.currentIds.calls++;
+  async createTutor(tutorData: InsertTutor): Promise<Tutor> {
+    const id = this.tutorIdCounter++;
     const now = new Date();
-    const call: Call = { 
-      ...insertCall, 
-      id, 
-      status: "scheduled", 
-      createdAt: now 
+    const tutor: Tutor = {
+      id,
+      ...tutorData,
+      createdAt: now.toISOString()
     };
-    this.calls.set(id, call);
+    this.tutors.set(id, tutor);
+    return tutor;
+  }
+  
+  // ScheduledCall operations
+  async getScheduledCall(id: number): Promise<ScheduledCall | undefined> {
+    return this.scheduledCalls.get(id);
+  }
+  
+  async getAllScheduledCalls(): Promise<ScheduledCall[]> {
+    return Array.from(this.scheduledCalls.values());
+  }
+  
+  async createScheduledCall(callData: InsertScheduledCall): Promise<ScheduledCall> {
+    const id = this.callIdCounter++;
+    const now = new Date();
+    
+    // Handle date and time conversion if needed
+    let callDate = callData.callDate;
+    if (typeof callDate === 'string') {
+      callDate = new Date(callDate).toISOString();
+    }
+    
+    const call: ScheduledCall = {
+      id,
+      ...callData,
+      callDate: callDate as any, // Type assertion to handle potential Date -> string conversion
+      status: "scheduled",
+      createdAt: now.toISOString()
+    };
+    this.scheduledCalls.set(id, call);
     return call;
   }
   
-  async updateCall(id: number, callData: Partial<Call>): Promise<Call | undefined> {
-    const call = this.calls.get(id);
-    if (!call) return undefined;
-    
-    const updatedCall = { ...call, ...callData };
-    this.calls.set(id, updatedCall);
-    return updatedCall;
-  }
-  
-  async listCalls(status?: string): Promise<Call[]> {
-    const calls = Array.from(this.calls.values());
-    return status 
-      ? calls.filter(call => call.status === status)
-      : calls;
-  }
-
   // Session operations
   async getSession(id: number): Promise<Session | undefined> {
     return this.sessions.get(id);
   }
   
-  async getSessionsByTutorId(tutorId: number): Promise<Session[]> {
-    return Array.from(this.sessions.values()).filter(
-      (session) => session.tutorId === tutorId,
-    );
+  async getAllSessions(): Promise<Session[]> {
+    return Array.from(this.sessions.values());
   }
   
-  async getSessionsByStudentId(studentId: number): Promise<Session[]> {
-    return Array.from(this.sessions.values()).filter(
-      (session) => session.studentId === studentId,
-    );
+  async getTodaySessions(): Promise<TodaySession[]> {
+    const today = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
+    
+    // Convert the sessions to the TodaySession format
+    return Array.from(this.sessions.values())
+      .filter(session => {
+        const sessionDate = new Date(session.date.toString()).toISOString().split('T')[0];
+        return sessionDate === today && session.status === "scheduled";
+      })
+      .map(session => {
+        // Fetch student and tutor info
+        const student = this.students.get(session.studentId);
+        const tutorUser = this.users.get(this.tutors.get(session.tutorId)?.userId || 0);
+        
+        return {
+          id: session.id,
+          time: `${session.startTime} - ${session.endTime}`,
+          subject: session.subject,
+          topic: session.notes || "General tutoring",
+          student: {
+            id: session.studentId,
+            name: student ? `${student.firstName} ${student.lastName}` : `Student #${session.studentId}`,
+            initials: student ? `${student.firstName.charAt(0)}${student.lastName.charAt(0)}` : "ST"
+          },
+          tutor: {
+            id: session.tutorId,
+            name: tutorUser ? `${tutorUser.firstName} ${tutorUser.lastName}` : `Tutor #${session.tutorId}`,
+            initials: tutorUser ? `${tutorUser.firstName.charAt(0)}${tutorUser.lastName.charAt(0)}` : "TU"
+          }
+        };
+      })
+      .slice(0, 3); // Limit to 3 sessions for the UI
   }
   
-  async createSession(insertSession: InsertSession): Promise<Session> {
-    const id = this.currentIds.sessions++;
+  async createSession(sessionData: InsertSession): Promise<Session> {
+    const id = this.sessionIdCounter++;
     const now = new Date();
-    const session: Session = { 
-      ...insertSession, 
-      id, 
-      status: "scheduled", 
-      createdAt: now 
+    const session: Session = {
+      id,
+      ...sessionData,
+      status: "scheduled",
+      createdAt: now.toISOString()
     };
     this.sessions.set(id, session);
     return session;
   }
   
-  async updateSession(id: number, sessionData: Partial<Session>): Promise<Session | undefined> {
-    const session = this.sessions.get(id);
-    if (!session) return undefined;
-    
-    const updatedSession = { ...session, ...sessionData };
-    this.sessions.set(id, updatedSession);
-    return updatedSession;
+  // SessionReport operations
+  async getSessionReport(id: number): Promise<SessionReport | undefined> {
+    return this.sessionReports.get(id);
   }
   
-  async listSessions(status?: string): Promise<Session[]> {
-    const sessions = Array.from(this.sessions.values());
-    return status 
-      ? sessions.filter(session => session.status === status)
-      : sessions;
-  }
-
-  // Report operations
-  async getReport(id: number): Promise<Report | undefined> {
-    return this.reports.get(id);
+  async getAllSessionReports(): Promise<SessionReport[]> {
+    return Array.from(this.sessionReports.values());
   }
   
-  async getReportBySessionId(sessionId: number): Promise<Report | undefined> {
-    return Array.from(this.reports.values()).find(
-      (report) => report.sessionId === sessionId,
-    );
-  }
-  
-  async createReport(insertReport: InsertReport): Promise<Report> {
-    const id = this.currentIds.reports++;
+  async createSessionReport(reportData: InsertSessionReport): Promise<SessionReport> {
+    const id = this.reportIdCounter++;
     const now = new Date();
-    const report: Report = { 
-      ...insertReport, 
-      id, 
-      approved: false, 
-      createdAt: now 
+    const report: SessionReport = {
+      id,
+      ...reportData,
+      adminApproved: false,
+      sentToParent: false,
+      createdAt: now.toISOString()
     };
-    this.reports.set(id, report);
+    this.sessionReports.set(id, report);
     return report;
   }
   
-  async updateReport(id: number, reportData: Partial<Report>): Promise<Report | undefined> {
-    const report = this.reports.get(id);
-    if (!report) return undefined;
-    
-    const updatedReport = { ...report, ...reportData };
-    this.reports.set(id, updatedReport);
-    return updatedReport;
-  }
-  
-  async listReports(approved?: boolean): Promise<Report[]> {
-    const reports = Array.from(this.reports.values());
-    return approved !== undefined 
-      ? reports.filter(report => report.approved === approved)
-      : reports;
-  }
-
   // Invoice operations
   async getInvoice(id: number): Promise<Invoice | undefined> {
     return this.invoices.get(id);
   }
   
-  async getInvoicesByTutorId(tutorId: number): Promise<Invoice[]> {
-    return Array.from(this.invoices.values()).filter(
-      (invoice) => invoice.tutorId === tutorId,
-    );
+  async getAllInvoices(): Promise<Invoice[]> {
+    return Array.from(this.invoices.values());
   }
   
-  async getInvoicesByParentId(parentId: number): Promise<Invoice[]> {
-    return Array.from(this.invoices.values()).filter(
-      (invoice) => invoice.parentId === parentId,
-    );
-  }
-  
-  async createInvoice(insertInvoice: InsertInvoice): Promise<Invoice> {
-    const id = this.currentIds.invoices++;
+  async createInvoice(invoiceData: InsertInvoice): Promise<Invoice> {
+    const id = this.invoiceIdCounter++;
     const now = new Date();
-    const invoice: Invoice = { 
-      ...insertInvoice, 
-      id, 
-      status: "pending", 
-      paidDate: null, 
-      createdAt: now 
+    const invoice: Invoice = {
+      id,
+      ...invoiceData,
+      status: "draft",
+      paidDate: null,
+      createdAt: now.toISOString()
     };
     this.invoices.set(id, invoice);
     return invoice;
   }
-  
-  async updateInvoice(id: number, invoiceData: Partial<Invoice>): Promise<Invoice | undefined> {
-    const invoice = this.invoices.get(id);
-    if (!invoice) return undefined;
-    
-    const updatedInvoice = { ...invoice, ...invoiceData };
-    this.invoices.set(id, updatedInvoice);
-    return updatedInvoice;
-  }
-  
-  async listInvoices(status?: string): Promise<Invoice[]> {
-    const invoices = Array.from(this.invoices.values());
-    return status 
-      ? invoices.filter(invoice => invoice.status === status)
-      : invoices;
-  }
 
-  // Invoice item operations
-  async getInvoiceItem(id: number): Promise<InvoiceItem | undefined> {
-    return this.invoiceItems.get(id);
-  }
-  
-  async getInvoiceItemsByInvoiceId(invoiceId: number): Promise<InvoiceItem[]> {
-    return Array.from(this.invoiceItems.values()).filter(
-      (item) => item.invoiceId === invoiceId,
-    );
-  }
-  
-  async createInvoiceItem(insertInvoiceItem: InsertInvoiceItem): Promise<InvoiceItem> {
-    const id = this.currentIds.invoiceItems++;
-    const invoiceItem: InvoiceItem = { ...insertInvoiceItem, id };
-    this.invoiceItems.set(id, invoiceItem);
-    return invoiceItem;
-  }
-  
-  async updateInvoiceItem(id: number, itemData: Partial<InvoiceItem>): Promise<InvoiceItem | undefined> {
-    const item = this.invoiceItems.get(id);
-    if (!item) return undefined;
+  // Dashboard operations
+  async getDashboardStats(): Promise<DashboardStats> {
+    // Calculate dashboard statistics
+    const newInquiries = Array.from(this.inquiries.values())
+      .filter(i => i.status === "new").length;
     
-    const updatedItem = { ...item, ...itemData };
-    this.invoiceItems.set(id, updatedItem);
-    return updatedItem;
+    const activeStudents = this.students.size;
+    
+    const activeTutors = Array.from(this.tutors.values())
+      .filter(t => t.isActive).length;
+    
+    // Calculate monthly revenue from paid invoices in current month
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    
+    const monthlyRevenue = Array.from(this.invoices.values())
+      .filter(inv => {
+        if (inv.status !== "paid") return false;
+        const paidDate = inv.paidDate ? new Date(inv.paidDate) : null;
+        return paidDate && paidDate.getMonth() === currentMonth && paidDate.getFullYear() === currentYear;
+      })
+      .reduce((total, inv) => total + inv.amount, 0);
+    
+    // Format monthly revenue as currency string
+    const formatter = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    });
+    
+    return {
+      newInquiries,
+      activeStudents,
+      activeTutors,
+      monthlyRevenue: formatter.format(monthlyRevenue / 100) // Convert cents to dollars
+    };
   }
 }
 

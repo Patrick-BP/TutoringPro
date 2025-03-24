@@ -1,45 +1,23 @@
-import express, { type Express, Request, Response } from "express";
+import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { 
-  insertUserSchema, 
-  insertTutorSchema, 
-  insertStudentSchema, 
-  insertInquirySchema, 
-  insertCallSchema, 
-  insertSessionSchema, 
-  insertReportSchema, 
-  insertInvoiceSchema, 
-  insertInvoiceItemSchema
-} from "@shared/schema";
 import { z } from "zod";
+import { insertInquirySchema, insertScheduledCallSchema, insertSessionReportSchema, insertInvoiceSchema } from "@shared/schema";
+import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  const apiRouter = express.Router();
-
   // Error handler for validation errors
-  const validateRequest = (schema: z.ZodSchema<any>) => {
-    return (req: Request, res: Response, next: Function) => {
-      try {
-        req.body = schema.parse(req.body);
-        next();
-      } catch (error) {
-        if (error instanceof z.ZodError) {
-          const validationError = fromZodError(error);
-          res.status(400).json({ 
-            message: "Validation error", 
-            errors: validationError.details 
-          });
-        } else {
-          next(error);
-        }
-      }
-    };
+  const handleValidationError = (error: unknown) => {
+    if (error instanceof ZodError) {
+      const validationError = fromZodError(error);
+      return { message: validationError.message };
+    }
+    return { message: "An unexpected error occurred" };
   };
 
-  // Authentication routes
-  apiRouter.post("/auth/login", async (req, res) => {
+  // Auth routes
+  app.post("/api/auth/login", async (req, res) => {
     try {
       const { username, password } = req.body;
       
@@ -50,621 +28,201 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.getUserByUsername(username);
       
       if (!user || user.password !== password) {
-        return res.status(401).json({ message: "Invalid credentials" });
+        return res.status(401).json({ message: "Invalid username or password" });
       }
       
-      // In a real app, we would create and return a JWT token here
-      res.json({ 
+      // In a real app, we would set up a session here
+      
+      return res.status(200).json({
         id: user.id,
         username: user.username,
+        firstName: user.firstName,
+        lastName: user.lastName,
         email: user.email,
-        fullName: user.fullName,
-        role: user.role 
+        role: user.role,
+        phone: user.phone,
+        avatar: user.avatar
       });
     } catch (error) {
-      res.status(500).json({ message: "Server error during login" });
+      console.error("Login error:", error);
+      return res.status(500).json({ message: "Server error during login" });
     }
   });
 
-  apiRouter.post("/auth/register", validateRequest(insertUserSchema), async (req, res) => {
-    try {
-      const { username, email } = req.body;
-      
-      // Check if username or email already exists
-      const existingUsername = await storage.getUserByUsername(username);
-      if (existingUsername) {
-        return res.status(400).json({ message: "Username already exists" });
-      }
-      
-      const existingEmail = await storage.getUserByEmail(email);
-      if (existingEmail) {
-        return res.status(400).json({ message: "Email already exists" });
-      }
-      
-      const user = await storage.createUser(req.body);
-      
-      res.status(201).json({
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        fullName: user.fullName,
-        role: user.role
-      });
-    } catch (error) {
-      res.status(500).json({ message: "Server error during registration" });
-    }
+  app.post("/api/auth/logout", (req, res) => {
+    // In a real app, we would destroy the session here
+    return res.status(200).json({ message: "Logged out successfully" });
   });
 
-  // User routes
-  apiRouter.get("/users", async (req, res) => {
+  // Dashboard stats
+  app.get("/api/stats/dashboard", async (req, res) => {
     try {
-      const role = req.query.role as string | undefined;
-      const users = await storage.listUsers(role);
-      
-      // Don't return passwords
-      const safeUsers = users.map(({ password, ...rest }) => rest);
-      res.json(safeUsers);
+      const stats = await storage.getDashboardStats();
+      return res.status(200).json(stats);
     } catch (error) {
-      res.status(500).json({ message: "Server error fetching users" });
-    }
-  });
-
-  apiRouter.get("/users/:id", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({ message: "Invalid user ID" });
-      }
-      
-      const user = await storage.getUser(id);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      
-      // Don't return password
-      const { password, ...safeUser } = user;
-      res.json(safeUser);
-    } catch (error) {
-      res.status(500).json({ message: "Server error fetching user" });
-    }
-  });
-
-  // Tutor routes
-  apiRouter.post("/tutors", validateRequest(insertTutorSchema), async (req, res) => {
-    try {
-      const tutor = await storage.createTutor(req.body);
-      res.status(201).json(tutor);
-    } catch (error) {
-      res.status(500).json({ message: "Server error creating tutor" });
-    }
-  });
-
-  apiRouter.get("/tutors", async (req, res) => {
-    try {
-      const activeStr = req.query.active as string | undefined;
-      const active = activeStr === 'true' ? true : 
-                    activeStr === 'false' ? false : 
-                    undefined;
-      
-      const tutors = await storage.listTutors(active);
-      res.json(tutors);
-    } catch (error) {
-      res.status(500).json({ message: "Server error fetching tutors" });
-    }
-  });
-
-  apiRouter.get("/tutors/:id", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({ message: "Invalid tutor ID" });
-      }
-      
-      const tutor = await storage.getTutor(id);
-      if (!tutor) {
-        return res.status(404).json({ message: "Tutor not found" });
-      }
-      
-      res.json(tutor);
-    } catch (error) {
-      res.status(500).json({ message: "Server error fetching tutor" });
-    }
-  });
-
-  // Student routes
-  apiRouter.post("/students", validateRequest(insertStudentSchema), async (req, res) => {
-    try {
-      const student = await storage.createStudent(req.body);
-      res.status(201).json(student);
-    } catch (error) {
-      res.status(500).json({ message: "Server error creating student" });
-    }
-  });
-
-  apiRouter.get("/students", async (req, res) => {
-    try {
-      const activeStr = req.query.active as string | undefined;
-      const active = activeStr === 'true' ? true : 
-                    activeStr === 'false' ? false : 
-                    undefined;
-      
-      const parentIdStr = req.query.parentId as string | undefined;
-      
-      if (parentIdStr) {
-        const parentId = parseInt(parentIdStr);
-        if (isNaN(parentId)) {
-          return res.status(400).json({ message: "Invalid parent ID" });
-        }
-        
-        const students = await storage.getStudentsByParentId(parentId);
-        return res.json(students);
-      }
-      
-      const students = await storage.listStudents(active);
-      res.json(students);
-    } catch (error) {
-      res.status(500).json({ message: "Server error fetching students" });
-    }
-  });
-
-  apiRouter.get("/students/:id", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({ message: "Invalid student ID" });
-      }
-      
-      const student = await storage.getStudent(id);
-      if (!student) {
-        return res.status(404).json({ message: "Student not found" });
-      }
-      
-      res.json(student);
-    } catch (error) {
-      res.status(500).json({ message: "Server error fetching student" });
+      console.error("Error fetching dashboard stats:", error);
+      return res.status(500).json({ message: "Failed to fetch dashboard stats" });
     }
   });
 
   // Inquiry routes
-  apiRouter.post("/inquiries", validateRequest(insertInquirySchema), async (req, res) => {
+  app.get("/api/inquiries", async (req, res) => {
     try {
-      const inquiry = await storage.createInquiry(req.body);
-      res.status(201).json(inquiry);
+      const inquiries = await storage.getAllInquiries();
+      return res.status(200).json(inquiries);
     } catch (error) {
-      res.status(500).json({ message: "Server error creating inquiry" });
+      console.error("Error fetching inquiries:", error);
+      return res.status(500).json({ message: "Failed to fetch inquiries" });
     }
   });
 
-  apiRouter.get("/inquiries", async (req, res) => {
+  app.get("/api/inquiries/recent", async (req, res) => {
     try {
-      const status = req.query.status as string | undefined;
-      const parentIdStr = req.query.parentId as string | undefined;
-      
-      if (parentIdStr) {
-        const parentId = parseInt(parentIdStr);
-        if (isNaN(parentId)) {
-          return res.status(400).json({ message: "Invalid parent ID" });
-        }
-        
-        const inquiries = await storage.getInquiriesByParentId(parentId);
-        return res.json(inquiries);
-      }
-      
-      const inquiries = await storage.listInquiries(status);
-      res.json(inquiries);
+      const inquiries = await storage.getRecentInquiries();
+      return res.status(200).json(inquiries);
     } catch (error) {
-      res.status(500).json({ message: "Server error fetching inquiries" });
+      console.error("Error fetching recent inquiries:", error);
+      return res.status(500).json({ message: "Failed to fetch recent inquiries" });
     }
   });
 
-  apiRouter.get("/inquiries/:id", async (req, res) => {
+  app.post("/api/inquiries", async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({ message: "Invalid inquiry ID" });
-      }
-      
-      const inquiry = await storage.getInquiry(id);
-      if (!inquiry) {
-        return res.status(404).json({ message: "Inquiry not found" });
-      }
-      
-      res.json(inquiry);
+      const inquiryData = insertInquirySchema.parse(req.body);
+      const newInquiry = await storage.createInquiry(inquiryData);
+      return res.status(201).json(newInquiry);
     } catch (error) {
-      res.status(500).json({ message: "Server error fetching inquiry" });
+      console.error("Error creating inquiry:", error);
+      if (error instanceof ZodError) {
+        return res.status(400).json(handleValidationError(error));
+      }
+      return res.status(500).json({ message: "Failed to create inquiry" });
     }
   });
 
-  apiRouter.patch("/inquiries/:id", async (req, res) => {
+  // Scheduled calls routes
+  app.get("/api/scheduled-calls", async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({ message: "Invalid inquiry ID" });
-      }
-      
-      const inquiry = await storage.getInquiry(id);
-      if (!inquiry) {
-        return res.status(404).json({ message: "Inquiry not found" });
-      }
-      
-      const updatedInquiry = await storage.updateInquiry(id, req.body);
-      res.json(updatedInquiry);
+      const calls = await storage.getAllScheduledCalls();
+      return res.status(200).json(calls);
     } catch (error) {
-      res.status(500).json({ message: "Server error updating inquiry" });
+      console.error("Error fetching scheduled calls:", error);
+      return res.status(500).json({ message: "Failed to fetch scheduled calls" });
     }
   });
 
-  // Call routes
-  apiRouter.post("/calls", validateRequest(insertCallSchema), async (req, res) => {
+  app.post("/api/scheduled-calls", async (req, res) => {
     try {
-      const call = await storage.createCall(req.body);
-      res.status(201).json(call);
+      const callData = insertScheduledCallSchema.parse(req.body);
+      const newCall = await storage.createScheduledCall(callData);
+      
+      // Update the inquiry status to "scheduled"
+      if (callData.inquiryId) {
+        await storage.updateInquiryStatus(callData.inquiryId, "scheduled");
+      }
+      
+      return res.status(201).json(newCall);
     } catch (error) {
-      res.status(500).json({ message: "Server error creating call" });
+      console.error("Error scheduling call:", error);
+      if (error instanceof ZodError) {
+        return res.status(400).json(handleValidationError(error));
+      }
+      return res.status(500).json({ message: "Failed to schedule call" });
     }
   });
 
-  apiRouter.get("/calls", async (req, res) => {
+  // Sessions routes
+  app.get("/api/sessions", async (req, res) => {
     try {
-      const status = req.query.status as string | undefined;
-      const parentIdStr = req.query.parentId as string | undefined;
-      
-      if (parentIdStr) {
-        const parentId = parseInt(parentIdStr);
-        if (isNaN(parentId)) {
-          return res.status(400).json({ message: "Invalid parent ID" });
-        }
-        
-        const calls = await storage.getCallsByParentId(parentId);
-        return res.json(calls);
-      }
-      
-      const calls = await storage.listCalls(status);
-      res.json(calls);
+      const sessions = await storage.getAllSessions();
+      return res.status(200).json(sessions);
     } catch (error) {
-      res.status(500).json({ message: "Server error fetching calls" });
+      console.error("Error fetching sessions:", error);
+      return res.status(500).json({ message: "Failed to fetch sessions" });
     }
   });
 
-  apiRouter.get("/calls/:id", async (req, res) => {
+  app.get("/api/sessions/today", async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({ message: "Invalid call ID" });
-      }
-      
-      const call = await storage.getCall(id);
-      if (!call) {
-        return res.status(404).json({ message: "Call not found" });
-      }
-      
-      res.json(call);
+      const sessions = await storage.getTodaySessions();
+      return res.status(200).json(sessions);
     } catch (error) {
-      res.status(500).json({ message: "Server error fetching call" });
+      console.error("Error fetching today's sessions:", error);
+      return res.status(500).json({ message: "Failed to fetch today's sessions" });
     }
   });
 
-  apiRouter.patch("/calls/:id", async (req, res) => {
+  // Tutor routes
+  app.get("/api/tutors", async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({ message: "Invalid call ID" });
-      }
-      
-      const call = await storage.getCall(id);
-      if (!call) {
-        return res.status(404).json({ message: "Call not found" });
-      }
-      
-      const updatedCall = await storage.updateCall(id, req.body);
-      res.json(updatedCall);
+      const tutors = await storage.getAllTutors();
+      return res.status(200).json(tutors);
     } catch (error) {
-      res.status(500).json({ message: "Server error updating call" });
+      console.error("Error fetching tutors:", error);
+      return res.status(500).json({ message: "Failed to fetch tutors" });
     }
   });
 
-  // Session routes
-  apiRouter.post("/sessions", validateRequest(insertSessionSchema), async (req, res) => {
+  // Student routes
+  app.get("/api/students", async (req, res) => {
     try {
-      const session = await storage.createSession(req.body);
-      res.status(201).json(session);
+      const students = await storage.getAllStudents();
+      return res.status(200).json(students);
     } catch (error) {
-      res.status(500).json({ message: "Server error creating session" });
+      console.error("Error fetching students:", error);
+      return res.status(500).json({ message: "Failed to fetch students" });
     }
   });
 
-  apiRouter.get("/sessions", async (req, res) => {
+  // Session reports routes
+  app.get("/api/session-reports", async (req, res) => {
     try {
-      const status = req.query.status as string | undefined;
-      const tutorIdStr = req.query.tutorId as string | undefined;
-      const studentIdStr = req.query.studentId as string | undefined;
-      
-      if (tutorIdStr) {
-        const tutorId = parseInt(tutorIdStr);
-        if (isNaN(tutorId)) {
-          return res.status(400).json({ message: "Invalid tutor ID" });
-        }
-        
-        const sessions = await storage.getSessionsByTutorId(tutorId);
-        return res.json(sessions);
-      }
-      
-      if (studentIdStr) {
-        const studentId = parseInt(studentIdStr);
-        if (isNaN(studentId)) {
-          return res.status(400).json({ message: "Invalid student ID" });
-        }
-        
-        const sessions = await storage.getSessionsByStudentId(studentId);
-        return res.json(sessions);
-      }
-      
-      const sessions = await storage.listSessions(status);
-      res.json(sessions);
+      const reports = await storage.getAllSessionReports();
+      return res.status(200).json(reports);
     } catch (error) {
-      res.status(500).json({ message: "Server error fetching sessions" });
+      console.error("Error fetching session reports:", error);
+      return res.status(500).json({ message: "Failed to fetch session reports" });
     }
   });
 
-  apiRouter.get("/sessions/:id", async (req, res) => {
+  app.post("/api/session-reports", async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({ message: "Invalid session ID" });
-      }
-      
-      const session = await storage.getSession(id);
-      if (!session) {
-        return res.status(404).json({ message: "Session not found" });
-      }
-      
-      res.json(session);
+      const reportData = insertSessionReportSchema.parse(req.body);
+      const newReport = await storage.createSessionReport(reportData);
+      return res.status(201).json(newReport);
     } catch (error) {
-      res.status(500).json({ message: "Server error fetching session" });
+      console.error("Error creating session report:", error);
+      if (error instanceof ZodError) {
+        return res.status(400).json(handleValidationError(error));
+      }
+      return res.status(500).json({ message: "Failed to create session report" });
     }
   });
 
-  apiRouter.patch("/sessions/:id", async (req, res) => {
+  // Invoices routes
+  app.get("/api/invoices", async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({ message: "Invalid session ID" });
-      }
-      
-      const session = await storage.getSession(id);
-      if (!session) {
-        return res.status(404).json({ message: "Session not found" });
-      }
-      
-      const updatedSession = await storage.updateSession(id, req.body);
-      res.json(updatedSession);
+      const invoices = await storage.getAllInvoices();
+      return res.status(200).json(invoices);
     } catch (error) {
-      res.status(500).json({ message: "Server error updating session" });
+      console.error("Error fetching invoices:", error);
+      return res.status(500).json({ message: "Failed to fetch invoices" });
     }
   });
 
-  // Report routes
-  apiRouter.post("/reports", validateRequest(insertReportSchema), async (req, res) => {
+  app.post("/api/invoices", async (req, res) => {
     try {
-      const report = await storage.createReport(req.body);
-      res.status(201).json(report);
+      const invoiceData = insertInvoiceSchema.parse(req.body);
+      const newInvoice = await storage.createInvoice(invoiceData);
+      return res.status(201).json(newInvoice);
     } catch (error) {
-      res.status(500).json({ message: "Server error creating report" });
+      console.error("Error creating invoice:", error);
+      if (error instanceof ZodError) {
+        return res.status(400).json(handleValidationError(error));
+      }
+      return res.status(500).json({ message: "Failed to create invoice" });
     }
   });
-
-  apiRouter.get("/reports", async (req, res) => {
-    try {
-      const approvedStr = req.query.approved as string | undefined;
-      const approved = approvedStr === 'true' ? true : 
-                      approvedStr === 'false' ? false : 
-                      undefined;
-      
-      const sessionIdStr = req.query.sessionId as string | undefined;
-      
-      if (sessionIdStr) {
-        const sessionId = parseInt(sessionIdStr);
-        if (isNaN(sessionId)) {
-          return res.status(400).json({ message: "Invalid session ID" });
-        }
-        
-        const report = await storage.getReportBySessionId(sessionId);
-        return res.json(report ? [report] : []);
-      }
-      
-      const reports = await storage.listReports(approved);
-      res.json(reports);
-    } catch (error) {
-      res.status(500).json({ message: "Server error fetching reports" });
-    }
-  });
-
-  apiRouter.get("/reports/:id", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({ message: "Invalid report ID" });
-      }
-      
-      const report = await storage.getReport(id);
-      if (!report) {
-        return res.status(404).json({ message: "Report not found" });
-      }
-      
-      res.json(report);
-    } catch (error) {
-      res.status(500).json({ message: "Server error fetching report" });
-    }
-  });
-
-  apiRouter.patch("/reports/:id", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({ message: "Invalid report ID" });
-      }
-      
-      const report = await storage.getReport(id);
-      if (!report) {
-        return res.status(404).json({ message: "Report not found" });
-      }
-      
-      const updatedReport = await storage.updateReport(id, req.body);
-      res.json(updatedReport);
-    } catch (error) {
-      res.status(500).json({ message: "Server error updating report" });
-    }
-  });
-
-  // Invoice routes
-  apiRouter.post("/invoices", validateRequest(insertInvoiceSchema), async (req, res) => {
-    try {
-      const invoice = await storage.createInvoice(req.body);
-      res.status(201).json(invoice);
-    } catch (error) {
-      res.status(500).json({ message: "Server error creating invoice" });
-    }
-  });
-
-  apiRouter.get("/invoices", async (req, res) => {
-    try {
-      const status = req.query.status as string | undefined;
-      const tutorIdStr = req.query.tutorId as string | undefined;
-      const parentIdStr = req.query.parentId as string | undefined;
-      
-      if (tutorIdStr) {
-        const tutorId = parseInt(tutorIdStr);
-        if (isNaN(tutorId)) {
-          return res.status(400).json({ message: "Invalid tutor ID" });
-        }
-        
-        const invoices = await storage.getInvoicesByTutorId(tutorId);
-        return res.json(invoices);
-      }
-      
-      if (parentIdStr) {
-        const parentId = parseInt(parentIdStr);
-        if (isNaN(parentId)) {
-          return res.status(400).json({ message: "Invalid parent ID" });
-        }
-        
-        const invoices = await storage.getInvoicesByParentId(parentId);
-        return res.json(invoices);
-      }
-      
-      const invoices = await storage.listInvoices(status);
-      res.json(invoices);
-    } catch (error) {
-      res.status(500).json({ message: "Server error fetching invoices" });
-    }
-  });
-
-  apiRouter.get("/invoices/:id", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({ message: "Invalid invoice ID" });
-      }
-      
-      const invoice = await storage.getInvoice(id);
-      if (!invoice) {
-        return res.status(404).json({ message: "Invoice not found" });
-      }
-      
-      res.json(invoice);
-    } catch (error) {
-      res.status(500).json({ message: "Server error fetching invoice" });
-    }
-  });
-
-  apiRouter.patch("/invoices/:id", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({ message: "Invalid invoice ID" });
-      }
-      
-      const invoice = await storage.getInvoice(id);
-      if (!invoice) {
-        return res.status(404).json({ message: "Invoice not found" });
-      }
-      
-      const updatedInvoice = await storage.updateInvoice(id, req.body);
-      res.json(updatedInvoice);
-    } catch (error) {
-      res.status(500).json({ message: "Server error updating invoice" });
-    }
-  });
-
-  // Invoice items routes
-  apiRouter.post("/invoice-items", validateRequest(insertInvoiceItemSchema), async (req, res) => {
-    try {
-      const item = await storage.createInvoiceItem(req.body);
-      res.status(201).json(item);
-    } catch (error) {
-      res.status(500).json({ message: "Server error creating invoice item" });
-    }
-  });
-
-  apiRouter.get("/invoice-items", async (req, res) => {
-    try {
-      const invoiceIdStr = req.query.invoiceId as string | undefined;
-      
-      if (invoiceIdStr) {
-        const invoiceId = parseInt(invoiceIdStr);
-        if (isNaN(invoiceId)) {
-          return res.status(400).json({ message: "Invalid invoice ID" });
-        }
-        
-        const items = await storage.getInvoiceItemsByInvoiceId(invoiceId);
-        return res.json(items);
-      }
-      
-      res.status(400).json({ message: "Invoice ID is required" });
-    } catch (error) {
-      res.status(500).json({ message: "Server error fetching invoice items" });
-    }
-  });
-
-  apiRouter.get("/invoice-items/:id", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({ message: "Invalid invoice item ID" });
-      }
-      
-      const item = await storage.getInvoiceItem(id);
-      if (!item) {
-        return res.status(404).json({ message: "Invoice item not found" });
-      }
-      
-      res.json(item);
-    } catch (error) {
-      res.status(500).json({ message: "Server error fetching invoice item" });
-    }
-  });
-
-  apiRouter.patch("/invoice-items/:id", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({ message: "Invalid invoice item ID" });
-      }
-      
-      const item = await storage.getInvoiceItem(id);
-      if (!item) {
-        return res.status(404).json({ message: "Invoice item not found" });
-      }
-      
-      const updatedItem = await storage.updateInvoiceItem(id, req.body);
-      res.json(updatedItem);
-    } catch (error) {
-      res.status(500).json({ message: "Server error updating invoice item" });
-    }
-  });
-
-  // Use the API router with /api prefix
-  app.use("/api", apiRouter);
 
   const httpServer = createServer(app);
   return httpServer;
