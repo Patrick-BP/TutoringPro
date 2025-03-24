@@ -33,38 +33,226 @@ export class DbStorage implements IStorage {
 
   // Student operations
   async getStudent(id: number): Promise<Student | undefined> {
-    const result = await db.select().from(students).where(eq(students.id, id)).limit(1);
-    return result.length > 0 ? result[0] : undefined;
+    try {
+      // Use raw SQL query to avoid column name mismatch issues
+      const result = await sql`
+        SELECT 
+          id, 
+          "firstName" as "firstName", 
+          "lastName" as "lastName", 
+          "parentId" as "parentId", 
+          grade, 
+          notes, 
+          "createdAt" as "createdAt" 
+        FROM students 
+        WHERE id = ${id} 
+        LIMIT 1
+      `;
+      return result.length > 0 ? result[0] as Student : undefined;
+    } catch (error) {
+      console.error(`Error in getStudent: ${error}`);
+      return undefined;
+    }
   }
 
   async getAllStudents(): Promise<Student[]> {
-    return await db.select().from(students);
+    try {
+      // Use raw SQL query to avoid column name mismatch issues
+      const result = await sql`
+        SELECT 
+          id, 
+          "firstName" as "firstName", 
+          "lastName" as "lastName", 
+          "parentId" as "parentId", 
+          grade, 
+          notes, 
+          "createdAt" as "createdAt" 
+        FROM students 
+        ORDER BY "lastName", "firstName"
+      `;
+      return result as Student[];
+    } catch (error) {
+      console.error(`Error in getAllStudents: ${error}`);
+      return [];
+    }
   }
 
   async createStudent(studentData: InsertStudent): Promise<Student> {
-    const result = await db.insert(students).values(studentData).returning();
-    return result[0];
+    try {
+      // Use raw SQL for insertion to handle column name differences
+      const result = await sql`
+        INSERT INTO students (
+          "firstName", 
+          "lastName", 
+          "parentId", 
+          grade, 
+          notes
+        ) VALUES (
+          ${studentData.firstName}, 
+          ${studentData.lastName}, 
+          ${studentData.parentId}, 
+          ${studentData.grade}, 
+          ${studentData.notes}
+        ) 
+        RETURNING 
+          id, 
+          "firstName" as "firstName", 
+          "lastName" as "lastName", 
+          "parentId" as "parentId", 
+          grade, 
+          notes, 
+          "createdAt" as "createdAt"
+      `;
+      return result[0] as Student;
+    } catch (error) {
+      console.error(`Error in createStudent: ${error}`);
+      throw error;
+    }
   }
 
   // Inquiry operations
   async getInquiry(id: number): Promise<Inquiry | undefined> {
-    const result = await db.select().from(inquiries).where(eq(inquiries.id, id)).limit(1);
-    return result.length > 0 ? result[0] : undefined;
+    try {
+      // Use raw SQL query to avoid column name mismatch issues
+      const result = await sql`
+        SELECT 
+          id, 
+          "parentFirstName" as "parentFirstName", 
+          "parentLastName" as "parentLastName", 
+          "parentEmail" as "parentEmail", 
+          "parentPhone" as "parentPhone", 
+          "studentName" as "studentName", 
+          grade as "studentGrade", 
+          subject, 
+          goals as "specificNeeds", 
+          source as "referral", 
+          status, 
+          "createdAt" as "createdAt" 
+        FROM inquiries 
+        WHERE id = ${id} 
+        LIMIT 1
+      `;
+      return result.length > 0 ? result[0] as Inquiry : undefined;
+    } catch (error) {
+      console.error(`Error in getInquiry: ${error}`);
+      return undefined;
+    }
   }
 
   async getAllInquiries(): Promise<Inquiry[]> {
-    return await db.select().from(inquiries).orderBy(desc(inquiries.createdAt));
+    try {
+      // Use raw SQL query to avoid column name mismatch issues
+      const result = await sql`
+        SELECT 
+          id, 
+          "parentFirstName" as "parentFirstName", 
+          "parentLastName" as "parentLastName", 
+          "parentEmail" as "parentEmail", 
+          "parentPhone" as "parentPhone", 
+          "studentName" as "studentName", 
+          grade as "studentGrade", 
+          subject, 
+          goals as "specificNeeds", 
+          source as "referral", 
+          status, 
+          "createdAt" as "createdAt" 
+        FROM inquiries 
+        ORDER BY "createdAt" DESC
+      `;
+      return result as Inquiry[];
+    } catch (error) {
+      console.error(`Error in getAllInquiries: ${error}`);
+      return [];
+    }
   }
 
   async getRecentInquiries(): Promise<Inquiry[]> {
-    return await db.select().from(inquiries)
-      .orderBy(desc(inquiries.createdAt))
-      .limit(5);
+    try {
+      // Use raw SQL query to avoid column name mismatch issues
+      const result = await sql`
+        SELECT 
+          id, 
+          "parentFirstName" as "parentFirstName", 
+          "parentLastName" as "parentLastName", 
+          "parentEmail" as "parentEmail", 
+          "parentPhone" as "parentPhone", 
+          "studentName" as "studentName", 
+          grade as "studentGrade", 
+          subject, 
+          goals as "specificNeeds", 
+          source as "referral", 
+          status, 
+          "createdAt" as "createdAt" 
+        FROM inquiries 
+        ORDER BY "createdAt" DESC 
+        LIMIT 5
+      `;
+      return result as Inquiry[];
+    } catch (error) {
+      console.error(`Error in getRecentInquiries: ${error}`);
+      return [];
+    }
   }
 
   async createInquiry(inquiryData: InsertInquiry): Promise<Inquiry> {
-    const result = await db.insert(inquiries).values(inquiryData).returning();
-    return result[0];
+    try {
+      // Use raw SQL for insertion to handle column name differences
+      const result = await sql`
+        INSERT INTO inquiries (
+          "parentFirstName", 
+          "parentLastName", 
+          "parentEmail", 
+          "parentPhone", 
+          "studentName", 
+          grade, 
+          subject, 
+          goals, 
+          location, 
+          "zipCode", 
+          availability, 
+          "additionalInfo", 
+          budget, 
+          source
+        ) VALUES (
+          ${inquiryData.parentFirstName}, 
+          ${inquiryData.parentLastName}, 
+          ${inquiryData.parentEmail}, 
+          ${inquiryData.parentPhone}, 
+          ${inquiryData.studentName}, 
+          ${inquiryData.studentGrade}, 
+          ${inquiryData.subject}, 
+          ${inquiryData.specificNeeds}, 
+          ${inquiryData.location}, 
+          ${inquiryData.zipCode}, 
+          ${inquiryData.availability ? JSON.stringify(inquiryData.availability) : null}, 
+          ${inquiryData.additionalInfo}, 
+          ${inquiryData.budget}, 
+          ${inquiryData.referral}
+        ) 
+        RETURNING 
+          id, 
+          "parentFirstName" as "parentFirstName", 
+          "parentLastName" as "parentLastName", 
+          "parentEmail" as "parentEmail", 
+          "parentPhone" as "parentPhone", 
+          "studentName" as "studentName", 
+          grade as "studentGrade", 
+          subject, 
+          goals as "specificNeeds", 
+          location, 
+          "zipCode" as "zipCode", 
+          availability, 
+          "additionalInfo" as "additionalInfo", 
+          budget, 
+          source as "referral", 
+          status, 
+          "createdAt" as "createdAt"
+      `;
+      return result[0] as Inquiry;
+    } catch (error) {
+      console.error(`Error in createInquiry: ${error}`);
+      throw error;
+    }
   }
 
   async updateInquiryStatus(id: number, status: string): Promise<Inquiry | undefined> {
@@ -75,14 +263,27 @@ export class DbStorage implements IStorage {
         throw new Error(`Invalid status: ${status}`);
       }
       
-      // Cast status to the required type
-      const validStatus = status as "new" | "scheduled" | "matched" | "completed" | "cancelled";
+      // Use raw SQL for update to handle column name differences
+      const result = await sql`
+        UPDATE inquiries 
+        SET status = ${status} 
+        WHERE id = ${id} 
+        RETURNING 
+          id, 
+          "parentFirstName" as "parentFirstName", 
+          "parentLastName" as "parentLastName", 
+          "parentEmail" as "parentEmail", 
+          "parentPhone" as "parentPhone", 
+          "studentName" as "studentName", 
+          grade as "studentGrade", 
+          subject, 
+          goals as "specificNeeds", 
+          source as "referral", 
+          status, 
+          "createdAt" as "createdAt"
+      `;
       
-      const result = await db.update(inquiries)
-        .set({ status: validStatus })
-        .where(eq(inquiries.id, id))
-        .returning();
-      return result.length > 0 ? result[0] : undefined;
+      return result.length > 0 ? result[0] as Inquiry : undefined;
     } catch (error) {
       console.error(`Error updating inquiry status: ${error}`);
       return undefined;
@@ -91,17 +292,100 @@ export class DbStorage implements IStorage {
 
   // Tutor operations
   async getTutor(id: number): Promise<Tutor | undefined> {
-    const result = await db.select().from(tutors).where(eq(tutors.id, id)).limit(1);
-    return result.length > 0 ? result[0] : undefined;
+    try {
+      // Use raw SQL query to avoid column name mismatch issues
+      const result = await sql`
+        SELECT 
+          id, 
+          "userId" as "userId", 
+          subjects, 
+          education, 
+          bio, 
+          "hourlyRate" as "hourlyRate", 
+          availability, 
+          location, 
+          "zipCode" as "zipCode", 
+          "isActive" as "isActive", 
+          "createdAt" as "createdAt" 
+        FROM tutors 
+        WHERE id = ${id} 
+        LIMIT 1
+      `;
+      return result.length > 0 ? result[0] as Tutor : undefined;
+    } catch (error) {
+      console.error(`Error in getTutor: ${error}`);
+      return undefined;
+    }
   }
 
   async getAllTutors(): Promise<Tutor[]> {
-    return await db.select().from(tutors);
+    try {
+      // Use raw SQL query to avoid column name mismatch issues
+      const result = await sql`
+        SELECT 
+          id, 
+          "userId" as "userId", 
+          subjects, 
+          education, 
+          bio, 
+          "hourlyRate" as "hourlyRate", 
+          availability, 
+          location, 
+          "zipCode" as "zipCode", 
+          "isActive" as "isActive", 
+          "createdAt" as "createdAt" 
+        FROM tutors
+      `;
+      return result as Tutor[];
+    } catch (error) {
+      console.error(`Error in getAllTutors: ${error}`);
+      return [];
+    }
   }
 
   async createTutor(tutorData: InsertTutor): Promise<Tutor> {
-    const result = await db.insert(tutors).values(tutorData).returning();
-    return result[0];
+    try {
+      // Use raw SQL for insertion to handle column name differences
+      const result = await sql`
+        INSERT INTO tutors (
+          "userId", 
+          subjects, 
+          education, 
+          bio, 
+          "hourlyRate", 
+          availability, 
+          location, 
+          "zipCode", 
+          "isActive"
+        ) VALUES (
+          ${tutorData.userId}, 
+          ${tutorData.subjects ? JSON.stringify(tutorData.subjects) : null}, 
+          ${tutorData.education}, 
+          ${tutorData.bio}, 
+          ${tutorData.hourlyRate}, 
+          ${tutorData.availability ? JSON.stringify(tutorData.availability) : null}, 
+          ${tutorData.location}, 
+          ${tutorData.zipCode}, 
+          ${tutorData.isActive}
+        ) 
+        RETURNING 
+          id, 
+          "userId" as "userId", 
+          subjects, 
+          education, 
+          bio, 
+          "hourlyRate" as "hourlyRate", 
+          availability, 
+          location, 
+          "zipCode" as "zipCode", 
+          "isActive" as "isActive", 
+          "createdAt" as "createdAt"
+      `;
+      return result[0] as Tutor;
+    } catch (error) {
+      console.error(`Error in createTutor: ${error}`);
+      throw error;
+    }
   }
 
   // ScheduledCall operations
