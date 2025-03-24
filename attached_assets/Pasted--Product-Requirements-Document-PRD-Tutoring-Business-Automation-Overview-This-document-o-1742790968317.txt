@@ -1,0 +1,113 @@
+# Product Requirements Document (PRD) - Tutoring Business Automation
+
+## Overview
+This document outlines the requirements for automating the core operations of a tutoring business. The new system aims to reduce manual work, improve efficiency, and enhance the overall experience for parents, tutors, and administrators.
+
+## Objectives
+- Automate administrative tasks such as scheduling, tutor matching, invoicing, and onboarding.
+- Reduce manual data entry and improve data organization.
+- Ensure seamless integration between inquiry, scheduling, and reporting.
+- Enhance communication between parents, tutors, and the admin team.
+
+## Key Features & Requirements
+
+### 1️⃣ Parent Inquiries
+**Current Issues:**
+- Inquiry form lacks structured, filterable data.
+- Manual data entry is time-consuming.
+
+**New System Requirements:**
+- Replace current inquiry form with a structured form featuring dropdowns and checkboxes.
+- Auto-populate inquiry data into a centralized database (e.g., Airtable or Google Sheets).
+- Ensure structured fields for location, schedule, subject, learning needs, and budget.
+
+### 2️⃣ Parent Call Scheduling
+**Current Issues:**
+- No fixed system for scheduling calls.
+- Manual coordination wastes time.
+
+**New System Requirements:**
+- Embed a scheduling tool to allow parents to book calls directly.
+- Automated email confirmations and calendar updates.
+- Integration with a shared scheduling system.
+
+### 3️⃣ Tutor Matching
+**Current Issues:**
+- Manual search for tutors based on subject, location, and availability.
+- Inefficient back-and-forth communication.
+
+**New System Requirements:**
+- Centralized tutor database with structured fields.
+- Automated filtering to find available tutors based on requirements.
+- Automatic email/text notifications to tutors and parents.
+
+### 4️⃣ Parent & Tutor Onboarding
+**Current Issues:**
+- Manual email communication for document sharing.
+- Lack of tracking for signed documents.
+
+**New System Requirements:**
+- Automated emails to parents with tutor details and required documents.
+- Digital liability forms for parents to sign and submit.
+- Automatic notifications to tutors with student details.
+
+### 5️⃣ Centralized Timetable
+**Current Issues:**
+- No centralized tracking of class schedules.
+- Parents and tutors lack a clear view of upcoming sessions.
+
+**New System Requirements:**
+- Automatic addition of booked sessions to a shared calendar.
+- Weekly reminders for parents and tutors.
+- Visibility for admin team.
+
+### 6️⃣ Session Reports & Feedback
+**Current Issues:**
+- Manual review and distribution of session reports.
+- Inconsistent collection of parent feedback.
+
+**New System Requirements:**
+- Tutors submit session reports via a structured form.
+- Automated report delivery to parents after admin approval.
+- Periodic automated feedback collection from parents.
+
+### 7️⃣ Billing & Payments
+**Current Issues:**
+- Manual invoice processing.
+- Delays due to tutors forgetting to invoice.
+
+**New System Requirements:**
+- Tutors submit invoices via a structured form.
+- Auto-processing of payments at fixed intervals.
+- Automatic invoice generation and delivery to parents.
+
+## Tech Stack & Implementation Guidelines
+- **Database:** Structured data storage (e.g., Airtable or equivalent).
+- **Automation:** Workflow automation via an integration tool (e.g., Zapier or similar).
+- **Scheduling:** Embedded scheduling system for parents.
+- **Payments:** Automated invoicing and payment processing.
+- **UI Components:** Use **shadcn** for a modern, accessible, and efficient interface.
+- **Dashboard (if required):** Built using a no-code/low-code platform (e.g., Bubble.io, Softr, or Glide).
+
+## Success Metrics
+- **Time Reduction:** 50% reduction in manual admin work.
+- **Automation Coverage:** At least 80% of administrative tasks automated.
+- **User Satisfaction:** Positive feedback from parents and tutors regarding ease of use.
+- **Accuracy Improvement:** Reduction in scheduling conflicts and data errors.
+
+## Timeline
+- **Week 1-2:** Requirement gathering and system design.
+- **Week 3-5:** Development and integration.
+- **Week 6:** User testing and feedback collection.
+- **Week 7:** Refinements and final deployment.
+
+## Stakeholders
+- **Business Owner/Admin Team** - Oversee automation implementation.
+- **Tutors** - Input availability, submit reports and invoices.
+- **Parents** - Book calls, receive reports and schedules.
+- **Automation Specialist** - Develop and integrate the system.
+
+---
+
+This PRD serves as a blueprint for automating tutoring operations while maintaining a seamless, tech-driven workflow.
+
