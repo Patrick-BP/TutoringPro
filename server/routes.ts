@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { dbStorage as storage } from "./dbStorage";
 import { z } from "zod";
 import { insertInquirySchema, insertScheduledCallSchema, insertSessionReportSchema, insertInvoiceSchema } from "@shared/schema";
 import { ZodError } from "zod";

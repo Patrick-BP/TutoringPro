@@ -8,7 +8,32 @@ import {
   sessionReports, type SessionReport, type InsertSessionReport,
   invoices, type Invoice, type InsertInvoice
 } from "@shared/schema";
-import { TodaySession, DashboardStats } from "@/types";
+
+// Today's session info for the dashboard
+export type TodaySession = {
+  id: number;
+  time: string;
+  subject: string;
+  topic: string;
+  student: {
+    id: number;
+    name: string;
+    initials: string;
+  };
+  tutor: {
+    id: number;
+    name: string;
+    initials: string;
+  };
+};
+
+// Dashboard statistics
+export type DashboardStats = {
+  newInquiries: number;
+  activeStudents: number;
+  activeTutors: number;
+  monthlyRevenue: string;
+};
 
 // Interface for storage operations
 export interface IStorage {
