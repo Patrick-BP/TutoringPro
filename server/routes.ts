@@ -2,7 +2,14 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { dbStorage as storage } from "./dbStorage";
 import { z } from "zod";
-import { insertInquirySchema, insertScheduledCallSchema, insertSessionReportSchema, insertInvoiceSchema } from "@shared/schema";
+import { 
+  insertInquirySchema, 
+  insertScheduledCallSchema, 
+  insertSessionReportSchema, 
+  insertInvoiceSchema,
+  insertStudentSchema,
+  insertTutorSchema
+} from "@shared/schema";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 
@@ -162,6 +169,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ message: "Failed to fetch tutors" });
     }
   });
+  
+  app.post("/api/tutors", async (req, res) => {
+    try {
+      const tutorData = insertTutorSchema.parse(req.body);
+      const newTutor = await storage.createTutor(tutorData);
+      return res.status(201).json(newTutor);
+    } catch (error) {
+      console.error("Error creating tutor:", error);
+      if (error instanceof ZodError) {
+        return res.status(400).json(handleValidationError(error));
+      }
+      return res.status(500).json({ message: "Failed to create tutor" });
+    }
+  });
 
   // Student routes
   app.get("/api/students", async (req, res) => {
@@ -171,6 +192,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching students:", error);
       return res.status(500).json({ message: "Failed to fetch students" });
+    }
+  });
+
+  app.post("/api/students", async (req, res) => {
+    try {
+      const studentData = insertStudentSchema.parse(req.body);
+      const newStudent = await storage.createStudent(studentData);
+      return res.status(201).json(newStudent);
+    } catch (error) {
+      console.error("Error creating student:", error);
+      if (error instanceof ZodError) {
+        return res.status(400).json(handleValidationError(error));
+      }
+      return res.status(500).json({ message: "Failed to create student" });
     }
   });
 

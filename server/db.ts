@@ -1,10 +1,7 @@
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import { neon, neonConfig } from '@neondatabase/serverless';
+import { drizzle } from 'drizzle-orm/postgres-js';
+import postgres from 'postgres';
 import * as schema from '../shared/schema';
 import { log } from './vite';
-
-// Configure neon client for Replit environment
-neonConfig.fetchConnectionCache = true;
 
 // Connection string is provided by Replit database
 const connectionString = process.env.DATABASE_URL as string;
@@ -13,11 +10,14 @@ if (!connectionString) {
   throw new Error('DATABASE_URL environment variable is not set');
 }
 
-// Create neon client
-const sql = neon(connectionString);
+// Create a postgres client
+const client = postgres(connectionString);
+
+// Export the SQL client for raw queries
+export const sql = client;
 
 // Create drizzle client
-export const db = drizzle(sql, { schema });
+export const db = drizzle(client, { schema });
 
 // Initialize the database
 export async function initializeDb() {
