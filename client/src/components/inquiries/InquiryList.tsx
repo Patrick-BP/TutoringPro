@@ -39,18 +39,24 @@ export default function InquiryList() {
 
   useEffect(() => {
     if (inquiries) {
-      setFilteredInquiries(
-        inquiries.filter((inquiry) => {
-          const searchLower = searchQuery.toLowerCase();
-          return (
-            inquiry.parentFirstName.toLowerCase().includes(searchLower) ||
-            inquiry.parentLastName.toLowerCase().includes(searchLower) ||
-            inquiry.studentName.toLowerCase().includes(searchLower) ||
-            inquiry.subject.toLowerCase().includes(searchLower) ||
-            (inquiry.specificNeeds && inquiry.specificNeeds.toLowerCase().includes(searchLower))
-          );
-        })
-      );
+      // Check if inquiries is an array
+      if (Array.isArray(inquiries)) {
+        setFilteredInquiries(
+          inquiries.filter((inquiry) => {
+            const searchLower = searchQuery.toLowerCase();
+            return (
+              inquiry.parentFirstName.toLowerCase().includes(searchLower) ||
+              inquiry.parentLastName.toLowerCase().includes(searchLower) ||
+              inquiry.studentName.toLowerCase().includes(searchLower) ||
+              inquiry.subject.toLowerCase().includes(searchLower) ||
+              (inquiry.specificNeeds && inquiry.specificNeeds.toLowerCase().includes(searchLower))
+            );
+          })
+        );
+      } else {
+        console.error("Inquiries is not an array:", inquiries);
+        setFilteredInquiries([]);
+      }
     }
   }, [inquiries, searchQuery]);
 

@@ -76,7 +76,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/inquiries", async (req, res) => {
     try {
       const inquiries = await storage.getAllInquiries();
-      return res.status(200).json(inquiries);
+      // Make sure we're returning an array
+      const inquiriesArray = Array.isArray(inquiries) ? inquiries : [];
+      return res.status(200).json(inquiriesArray);
     } catch (error) {
       console.error("Error fetching inquiries:", error);
       return res.status(500).json({ message: "Failed to fetch inquiries" });
@@ -86,7 +88,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/inquiries/recent", async (req, res) => {
     try {
       const inquiries = await storage.getRecentInquiries();
-      return res.status(200).json(inquiries);
+      // Make sure we're returning an array
+      const inquiriesArray = Array.isArray(inquiries) ? inquiries : [];
+      return res.status(200).json(inquiriesArray);
     } catch (error) {
       console.error("Error fetching recent inquiries:", error);
       return res.status(500).json({ message: "Failed to fetch recent inquiries" });
@@ -111,7 +115,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/scheduled-calls", async (req, res) => {
     try {
       const calls = await storage.getAllScheduledCalls();
-      return res.status(200).json(calls);
+      // Make sure we're returning an array
+      const callsArray = Array.isArray(calls) ? calls : [];
+      return res.status(200).json(callsArray);
     } catch (error) {
       console.error("Error fetching scheduled calls:", error);
       return res.status(500).json({ message: "Failed to fetch scheduled calls" });
@@ -142,7 +148,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/sessions", async (req, res) => {
     try {
       const sessions = await storage.getAllSessions();
-      return res.status(200).json(sessions);
+      // Make sure we're returning an array
+      const sessionsArray = Array.isArray(sessions) ? sessions : [];
+      return res.status(200).json(sessionsArray);
     } catch (error) {
       console.error("Error fetching sessions:", error);
       return res.status(500).json({ message: "Failed to fetch sessions" });
@@ -152,7 +160,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/sessions/today", async (req, res) => {
     try {
       const sessions = await storage.getTodaySessions();
-      return res.status(200).json(sessions);
+      // Make sure we're returning an array
+      const sessionsArray = Array.isArray(sessions) ? sessions : [];
+      return res.status(200).json(sessionsArray);
     } catch (error) {
       console.error("Error fetching today's sessions:", error);
       return res.status(500).json({ message: "Failed to fetch today's sessions" });
@@ -163,7 +173,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/tutors", async (req, res) => {
     try {
       const tutors = await storage.getAllTutors();
-      return res.status(200).json(tutors);
+      // Make sure we're returning an array
+      const tutorsArray = Array.isArray(tutors) ? tutors : [];
+      return res.status(200).json(tutorsArray);
     } catch (error) {
       console.error("Error fetching tutors:", error);
       return res.status(500).json({ message: "Failed to fetch tutors" });
@@ -188,7 +200,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/students", async (req, res) => {
     try {
       const students = await storage.getAllStudents();
-      return res.status(200).json(students);
+      // Make sure we're returning an array
+      const studentsArray = Array.isArray(students) ? students : [];
+      return res.status(200).json(studentsArray);
     } catch (error) {
       console.error("Error fetching students:", error);
       return res.status(500).json({ message: "Failed to fetch students" });
