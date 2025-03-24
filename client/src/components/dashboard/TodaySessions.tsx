@@ -90,10 +90,8 @@ export default function TodaySessions() {
       
       {sessions && sessions.length > 0 && (
         <div className="p-4 bg-gray-50 border-t border-gray-200">
-          <Link href="/calendar">
-            <a className="block text-center text-sm text-primary hover:text-primary-700 font-medium">
-              View Full Calendar
-            </a>
+          <Link href="/calendar" className="block text-center text-sm text-primary hover:text-primary-700 font-medium">
+            View Full Calendar
           </Link>
         </div>
       )}

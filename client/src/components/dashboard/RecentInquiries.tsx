@@ -79,8 +79,8 @@ export default function RecentInquiries() {
     <Card className="overflow-hidden">
       <CardHeader className="px-6 py-4 border-b border-gray-200 flex flex-row items-center justify-between">
         <CardTitle className="text-lg font-semibold">Recent Inquiries</CardTitle>
-        <Link href="/inquiries">
-          <a className="text-sm text-primary hover:text-primary-600">View all</a>
+        <Link href="/inquiries" className="text-sm text-primary hover:text-primary-600">
+          View all
         </Link>
       </CardHeader>
       
