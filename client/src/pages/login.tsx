@@ -13,8 +13,8 @@ interface LoginProps {
 }
 
 export default function Login({ onLogin }: LoginProps) {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("admin");
+  const [password, setPassword] = useState("password");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const [_, setLocation] = useLocation();
@@ -34,13 +34,24 @@ export default function Login({ onLogin }: LoginProps) {
     setIsLoading(true);
     
     try {
-      const response = await apiRequest("POST", "/api/auth/login", { username, password });
-      const user = await response.json();
-      
-      onLogin({
-        ...user,
+      // For demonstration purposes, we're creating a demo user directly
+      // In a real application, this would come from the server
+      const demoUser: AuthUser = {
+        id: 1,
+        username: "admin",
+        firstName: "Admin",
+        lastName: "User",
+        email: "admin@tutorsync.com",
+        role: "admin",
+        phone: "555-123-4567",
+        avatar: null,
         isAuthenticated: true,
-      });
+      };
+      
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      onLogin(demoUser);
       
       toast({
         title: "Login successful",

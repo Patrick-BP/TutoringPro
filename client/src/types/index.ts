@@ -32,6 +32,14 @@ export type TodaySession = {
   };
 };
 
-export type AuthUser = User & {
+export type AuthUser = {
+  id: number;
+  username: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: "admin" | "parent" | "tutor";
+  phone: string | null;
+  avatar: string | null;
   isAuthenticated: boolean;
 };
